@@ -1,0 +1,5 @@
+# Require idempotent job submission
+
+`POST /jobs` requires a client-provided `Idempotency-Key` so a retried HTTP request cannot create duplicate database Jobs or duplicate billable AI executions. The system stores a hash of the validated payload with the key: reusing the key with the same payload returns the existing Job, while reusing it with a different payload returns `409 Conflict`. Content hashes alone are not used as Job identity because processing the same material more than once can be a legitimate client intent.
+
+A new submission returns `202 Accepted` with `Location: /jobs/{id}`. Replaying the same key and payload during the 30-day idempotency window returns `200 OK` with the Job's current durable state and `Idempotency-Replayed: true`, rather than replaying a stale initial response. A unique constraint and transaction resolve concurrent submissions with the same key. After a final failure, a client that intends a new processing run must submit a new idempotency key. The reservation expires when the retained Job is deleted, after which the old key may be used again.

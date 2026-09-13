@@ -26,7 +26,3 @@ lerna-debug.log*
 
 # misc
 .DS_Store
-
-# V2 design artifacts live on the project-v2 branch
-docs/adr/**
-CONTEXT.md
