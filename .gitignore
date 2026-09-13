@@ -8,8 +8,10 @@
 .idea/usage.statistics.xml
 .idea/shelf
 
-# deps
+# deps and generated output
 node_modules/
+dist/
+coverage/
 
 # env
 .env

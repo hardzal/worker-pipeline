@@ -1,4 +1,10 @@
 onlyBuiltDependencies:
   - esbuild
 allowBuilds:
+  '@prisma/engines': true
   esbuild: true
+  msgpackr-extract: false
+  prisma: true
+minimumReleaseAgeExclude:
+  - '@anvia/core@1.3.0'
+  - zod@4.6.4
