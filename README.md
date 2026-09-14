@@ -2,7 +2,7 @@
 
 API pemrosesan AI asinkron berbasis TypeScript. Client mengirim materi belajar melalui HTTP, API menyimpan job secara persisten, BullMQ menjadwalkan pekerjaan, lalu background worker menjalankan pipeline AI dan menyimpan hasil beserta catatan setiap tahap pemrosesan.
 
-> Status project: **bootstrap / tahap awal**. Saat ini repository baru menyediakan server Hono sederhana. PostgreSQL, Redis, BullMQ, Prisma, background worker, endpoint job, dan integrasi AI di bawah ini masih merupakan target implementasi berdasarkan project plan.
+> Status project: **infrastructure and persistence foundation**. Hono, PostgreSQL, Redis, BullMQ, Prisma, the initial schema, and an infrastructure smoke worker are available. Job HTTP endpoints and the real AI pipeline remain the next implementation phases from the project plan.
 
 ## Tujuan
 
@@ -154,19 +154,17 @@ Contoh respons awal:
 - TypeScript
 - Hono
 - `@hono/node-server`
+- Prisma 7 + PostgreSQL adapter
+- BullMQ + ioredis
+- Zod
+- Vitest
 - tsx
 - pnpm
 
 ### Direncanakan
 
-- BullMQ
-- Redis
-- PostgreSQL
-- Prisma 8
-- Zod
 - Anvia SDK dan model AI nyata melalui API OpenAI-compatible
-- Vitest
-- Docker Compose untuk PostgreSQL dan Redis
+- Docker Compose / Podman Compose untuk PostgreSQL dan Redis
 
 ## Prasyarat
 
@@ -219,9 +217,23 @@ Keterangan:
 - `OPENAI_API_KEY`: credential provider; jangan commit file `.env`.
 - `OPENAI_API_BASE_URL`: base URL endpoint OpenAI-compatible.
 
-Pada bootstrap saat ini, `src/index.ts` belum membaca nilai tersebut. Variabel ini disiapkan untuk fase integrasi pipeline AI. Konfigurasi PostgreSQL dan Redis akan ditambahkan ketika fase infrastructure diimplementasikan.
+`src/server.ts` and `src/worker.ts` read the runtime settings through the validated environment parser. The AI variables remain optional until the AI integration phase.
 
 ## Menjalankan Project Saat Ini
+
+Start the local infrastructure before running the API or worker:
+
+```bash
+podman compose up -d
+# or: docker compose up -d
+```
+
+Apply the Prisma schema:
+
+```bash
+pnpm prisma:generate
+pnpm prisma:migrate
+```
 
 ### Development mode
 
@@ -372,13 +384,13 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | --- | --- |
 | Hono bootstrap server | Tersedia |
 | Root endpoint `GET /` | Tersedia |
-| Health endpoint `GET /health` | Belum diimplementasikan |
-| PostgreSQL / Prisma | Belum diimplementasikan |
-| Redis / BullMQ | Belum diimplementasikan |
-| Background worker | Belum diimplementasikan |
+| Health endpoint `GET /health` | Tersedia |
+| PostgreSQL / Prisma | Tersedia: schema, migration, client factory |
+| Redis / BullMQ | Tersedia: queue configuration and retry defaults |
+| Background worker | Tersedia: infrastructure smoke processor |
 | Job API | Belum diimplementasikan |
 | Sequential AI pipeline | Belum diimplementasikan |
-| Job dan step persistence | Belum diimplementasikan |
-| Automated tests | Belum diimplementasikan |
+| Job dan step persistence | Tersedia: Prisma schema and migration |
+| Automated tests | Tersedia: unit tests; infrastructure smoke-verified locally |
 
 Status ini sengaja membedakan dokumentasi arsitektur target dari fitur yang benar-benar sudah dapat dijalankan.
