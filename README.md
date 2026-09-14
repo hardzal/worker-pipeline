@@ -2,7 +2,7 @@
 
 Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **Pipeline Agent with real AI worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, dan three-step study-guide AI pipeline tersedia. Job query endpoints masih menjadi fase berikutnya.
+> Status project: **Pipeline Agent with real AI worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, three-step study-guide AI pipeline, dan per-step `JobStep` logging tersedia. Job query endpoints masih menjadi fase berikutnya.
 
 ## Tujuan
 
@@ -459,6 +459,7 @@ src/
 │       └── generate-study-guide.step.ts
 ├── ai/
 │   ├── client.ts
+│   ├── completion.ts
 │   ├── prompts.ts
 │   └── schemas.ts
 └── shared/
@@ -483,7 +484,7 @@ generated/prisma/
 4. Pipeline Agent HTTP/CLI input dan internal JobService enqueue flow.
 5. Background worker dengan real AI study-guide pipeline.
 6. Structured output schema dan Anvia/OpenAI model adapter.
-7. Persistensi serta sanitasi pipeline step logs.
+7. Persistensi serta sanitasi pipeline step logs. **Selesai.**
 8. `GET /jobs` dan `GET /jobs/:id`.
 9. Failure handling, retry, dan idempotency.
 10. Unit, integration, end-to-end, dan restart-persistence test.
@@ -503,8 +504,8 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
 | Job API `GET /jobs*` | Belum diimplementasikan |
-| Sequential AI pipeline | Belum diimplementasikan |
-| Job dan step persistence | Tersedia: Prisma 8 contract and legacy migration history |
+| Sequential AI pipeline | Tersedia: tiga structured AI calls berurutan |
+| Job dan step persistence | Tersedia: Job lifecycle dan tiga `JobStep` row per job yang selesai |
 | Automated tests | Tersedia: unit tests; API → Redis → worker → PostgreSQL smoke-verified locally |
 
 Status ini sengaja membedakan dokumentasi arsitektur target dari fitur yang benar-benar sudah dapat dijalankan.

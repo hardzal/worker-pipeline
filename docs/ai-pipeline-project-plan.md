@@ -1470,6 +1470,8 @@ analyze material
 
 ## Phase 7 — Step Logging
 
+Status: **Completed**. `executeStep` now persists sanitized input/output, lifecycle status, duration, and sanitized errors through the `JobStep` repository contract. The real API → queue → worker smoke test produced three `COMPLETED` `JobStep` rows for one completed job.
+
 Tasks:
 
 - create `executeStep`

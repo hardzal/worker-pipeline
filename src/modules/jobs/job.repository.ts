@@ -9,6 +9,7 @@ import {
 import type {
   CreateJobInput,
   JobRepository,
+  JobStepRepository,
   JobWorkerRepository,
   PendingJob,
   ProcessableJob,
@@ -18,7 +19,7 @@ const JOB_TYPE = 'study-guide'
 
 export function createJobRepository(
   prisma: PrismaDb,
-): JobRepository & JobWorkerRepository {
+): JobRepository & JobWorkerRepository & JobStepRepository {
   return {
     async createPending(input: CreateJobInput): Promise<PendingJob> {
       const now = currentPrismaTimestamp()
@@ -88,6 +89,58 @@ export function createJobRepository(
         error,
         status: 'FAILED',
         updatedAt: now,
+      })
+    },
+
+    async createStep(
+      jobId: string,
+      name: string,
+      order: number,
+      input: JsonValue,
+    ): Promise<{ id: string }> {
+      const id = randomUUID()
+      await prisma.orm.public.JobStep.create({
+        id,
+        jobId,
+        name,
+        order,
+        status: 'PENDING',
+        input,
+      })
+
+      return { id }
+    },
+
+    async markStepProcessing(stepId: string): Promise<void> {
+      await prisma.orm.public.JobStep.where({ id: stepId }).update({
+        startedAt: currentPrismaTimestamp(),
+        status: 'PROCESSING',
+      })
+    },
+
+    async markStepCompleted(
+      stepId: string,
+      output: JsonValue,
+      durationMs: number,
+    ): Promise<void> {
+      await prisma.orm.public.JobStep.where({ id: stepId }).update({
+        completedAt: currentPrismaTimestamp(),
+        durationMs,
+        output,
+        status: 'COMPLETED',
+      })
+    },
+
+    async markStepFailed(
+      stepId: string,
+      error: string,
+      durationMs: number,
+    ): Promise<void> {
+      await prisma.orm.public.JobStep.where({ id: stepId }).update({
+        completedAt: currentPrismaTimestamp(),
+        durationMs,
+        error,
+        status: 'FAILED',
       })
     },
   }

@@ -4,6 +4,7 @@ import {
   createStudyGuideProcessor,
   type StructuredCompletion,
 } from '../../src/pipeline/study-guide.pipeline.js'
+import type { StepLogger } from '../../src/pipeline/execute-step.js'
 
 const job = {
   id: 'job-1',
@@ -12,6 +13,17 @@ const job = {
     content:
       'Model Context Protocol standardizes how AI applications connect to external tools and data sources.',
   },
+}
+
+function createStepLogger() {
+  let nextStep = 0
+
+  return {
+    createStep: vi.fn(async () => ({ id: `step-${++nextStep}` })),
+    markStepProcessing: vi.fn(async () => undefined),
+    markStepCompleted: vi.fn(async () => undefined),
+    markStepFailed: vi.fn(async () => undefined),
+  } satisfies StepLogger
 }
 
 describe('createStudyGuideProcessor', () => {
@@ -56,13 +68,20 @@ describe('createStudyGuideProcessor', () => {
       return schema.parse(responses.shift())
     })
 
-    const result = await createStudyGuideProcessor({ complete })(job)
+    const stepLogger = createStepLogger()
+    const result = await createStudyGuideProcessor({ complete, stepLogger })(job)
 
     expect(result).toEqual(expectedGuide)
     expect(complete).toHaveBeenCalledTimes(3)
     expect(complete.mock.calls[0]?.[0].instructions).toContain('Analyze')
     expect(complete.mock.calls[1]?.[0].instructions).toContain('concept')
     expect(complete.mock.calls[2]?.[0].instructions).toContain('study guide')
+    expect(stepLogger.createStep.mock.calls.map(([jobId, name, order]) => [jobId, name, order])).toEqual([
+      ['job-1', 'analyze-material', 1],
+      ['job-1', 'extract-concepts', 2],
+      ['job-1', 'generate-study-guide', 3],
+    ])
+    expect(stepLogger.markStepCompleted).toHaveBeenCalledTimes(3)
   })
 
   it('propagates a model failure without returning a partial guide', async () => {
@@ -70,9 +89,12 @@ describe('createStudyGuideProcessor', () => {
       throw new Error('model unavailable')
     })
 
+    const stepLogger = createStepLogger()
+
     await expect(
-      createStudyGuideProcessor({ complete })(job),
+      createStudyGuideProcessor({ complete, stepLogger })(job),
     ).rejects.toThrow('model unavailable')
     expect(complete).toHaveBeenCalledTimes(1)
+    expect(stepLogger.markStepFailed).toHaveBeenCalledTimes(1)
   })
 })

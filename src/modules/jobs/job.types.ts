@@ -38,6 +38,13 @@ export interface JobWorkerRepository {
   markFailed(jobId: string, error: string): Promise<void>
 }
 
+export interface JobStepRepository {
+  createStep(jobId: string, name: string, order: number, input: JsonValue): Promise<{ id: string }>
+  markStepProcessing(stepId: string): Promise<void>
+  markStepCompleted(stepId: string, output: JsonValue, durationMs: number): Promise<void>
+  markStepFailed(stepId: string, error: string, durationMs: number): Promise<void>
+}
+
 export interface JobQueue {
   add(
     name: string,

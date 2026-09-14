@@ -116,4 +116,54 @@ describe('createJobRepository', () => {
       updatedAt: expect.any(Temporal.PlainDateTime),
     })
   })
+
+  it('persists the JobStep lifecycle with sanitized data supplied by the logger', async () => {
+    const create = vi.fn(async (data: Record<string, unknown>) => ({ id: data.id }))
+    const update = vi.fn(async () => undefined)
+    const where = vi.fn(() => ({ update }))
+    const db = {
+      orm: {
+        public: {
+          JobStep: { create, where },
+        },
+      },
+    }
+    const repository = createJobRepository(db as never)
+
+    const step = await repository.createStep('job-1', 'analyze-material', 1, {
+      topic: 'MCP',
+    })
+    await repository.markStepProcessing(step.id)
+    await repository.markStepCompleted(step.id, { summary: 'done' }, 12)
+    await repository.markStepFailed(step.id, 'provider failed', 15)
+
+    expect(step).toEqual({ id: expect.any(String) })
+    expect(create).toHaveBeenCalledWith({
+      id: step.id,
+      jobId: 'job-1',
+      name: 'analyze-material',
+      order: 1,
+      status: 'PENDING',
+      input: { topic: 'MCP' },
+    })
+    expect(where).toHaveBeenNthCalledWith(1, { id: step.id })
+    expect(where).toHaveBeenNthCalledWith(2, { id: step.id })
+    expect(where).toHaveBeenNthCalledWith(3, { id: step.id })
+    expect(update).toHaveBeenNthCalledWith(1, {
+      startedAt: expect.any(Temporal.PlainDateTime),
+      status: 'PROCESSING',
+    })
+    expect(update).toHaveBeenNthCalledWith(2, {
+      completedAt: expect.any(Temporal.PlainDateTime),
+      durationMs: 12,
+      output: { summary: 'done' },
+      status: 'COMPLETED',
+    })
+    expect(update).toHaveBeenNthCalledWith(3, {
+      completedAt: expect.any(Temporal.PlainDateTime),
+      durationMs: 15,
+      error: 'provider failed',
+      status: 'FAILED',
+    })
+  })
 })

@@ -20,7 +20,7 @@ const complete = createAnviaStructuredCompletion(
 const worker = createJobWorker(
   createRedisOptions(environment),
   createWorkerProcessor({
-    process: createStudyGuideProcessor({ complete }),
+    process: createStudyGuideProcessor({ complete, stepLogger: repository }),
     repository,
   }),
   {
