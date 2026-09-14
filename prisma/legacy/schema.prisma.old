@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  type        String
+  status      JobStatus @default(PENDING)
+
+  input       Json
+  result      Json?
+  error       String?
+
+  bullJobId   String?   @unique
+
+  createdAt   DateTime  @default(now())
+  queuedAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  steps       JobStep[]
+}
+
+enum JobStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model JobStep {
+  id          String        @id @default(uuid())
+
+  jobId       String
+  job         Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  name        String
+  order       Int
+  status      JobStepStatus @default(PENDING)
+
+  input       Json?
+  output      Json?
+  error       String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+
+  createdAt   DateTime      @default(now())
+
+  @@index([jobId])
+  @@index([jobId, order])
+}
+
+enum JobStepStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

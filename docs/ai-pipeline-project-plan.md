@@ -812,8 +812,15 @@ src/
 └── worker.ts
 
 prisma/
-├── schema.prisma
-└── migrations/
+├── schema.prisma          # active Prisma 8 contract
+├── migrations/             # active Prisma 8 migration graph
+├── legacy/
+│   ├── schema.prisma      # legacy Prisma 7 source
+│   └── migrations/        # legacy migration history
+
+generated/prisma/
+├── contract.json
+└── contract.d.ts
 
 docker/
 └── ...
@@ -1299,9 +1306,10 @@ This clearly demonstrates that the background processor is a separate process.
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
+    "prisma:contract:emit": "prisma contract emit",
+    "prisma:db:verify": "prisma db verify",
+    "prisma:db:migrate": "prisma db migrate",
+    "prisma:migration:plan": "prisma migration plan",
     "test": "vitest"
   }
 }

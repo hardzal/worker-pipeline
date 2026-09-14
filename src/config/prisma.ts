@@ -1,8 +1,20 @@
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '@prisma/client'
+import 'temporal-polyfill/full/global'
 
-export function createPrismaClient(databaseUrl: string): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: databaseUrl })
+import postgres from '@prisma/orm-postgres/runtime'
+import { Temporal } from 'temporal-polyfill'
 
-  return new PrismaClient({ adapter })
+import type { Contract } from '../../generated/prisma/contract.js'
+import contractJson from '../../generated/prisma/contract.json' with { type: 'json' }
+
+export function createPrismaClient(databaseUrl: string) {
+  return postgres<Contract>({
+    url: databaseUrl,
+    contractJson,
+  })
+}
+
+export type PrismaDb = ReturnType<typeof createPrismaClient>
+
+export function currentPrismaTimestamp(): Temporal.PlainDateTime {
+  return Temporal.Now.instant().toZonedDateTimeISO('UTC').toPlainDateTime()
 }

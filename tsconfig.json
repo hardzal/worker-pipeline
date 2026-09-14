@@ -5,14 +5,15 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "types": [
-      "node"
+      "node",
     ],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "rootDir": "./src",
     "outDir": "./dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "generated/prisma/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "tests", "vitest.config.ts"]
 }

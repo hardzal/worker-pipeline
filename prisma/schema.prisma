@@ -1,66 +1,69 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// use prisma-next
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
-datasource db {
-  provider = "postgresql"
-}
+namespace public {
+  model Job {
+    id          String             @id(map: "Job_pkey")
+    _type       String             @map("type")
+    status      pg.enum(JobStatus) @default("PENDING")
+    input       Jsonb
+    result      Jsonb?
+    error       String?
+    bullJobId   String?
+    createdAt   Timestamp(3)       @default(now())
+    queuedAt    Timestamp(3)?
+    startedAt   Timestamp(3)?
+    completedAt Timestamp(3)?
+    updatedAt   Timestamp(3)
+    jobSteps    JobStep[]
 
-model Job {
-  id          String    @id @default(uuid())
-  type        String
-  status      JobStatus @default(PENDING)
+    @@index([bullJobId], map: "Job_bullJobId_key", unique: true)
+  }
 
-  input       Json
-  result      Json?
-  error       String?
+  model JobStep {
+    id          String                 @id(map: "JobStep_pkey")
+    jobId       String
+    name        String
+    order       Int
+    status      pg.enum(JobStepStatus) @default("PENDING")
+    input       Jsonb?
+    output      Jsonb?
+    error       String?
+    startedAt   Timestamp(3)?
+    completedAt Timestamp(3)?
+    durationMs  Int?
+    createdAt   Timestamp(3)           @default(now())
+    job         Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "JobStep_jobId_fkey")
 
-  bullJobId   String?   @unique
+    @@index([jobId], map: "JobStep_jobId_idx")
+    @@index([jobId, order], map: "JobStep_jobId_order_idx")
+  }
 
-  createdAt   DateTime  @default(now())
-  queuedAt    DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  updatedAt   DateTime  @updatedAt
+  model PrismaMigrations {
+    id                VarChar(36)  @id(map: "_prisma_migrations_pkey")
+    checksum          VarChar(64)
+    finishedAt        Timestamptz? @map("finished_at")
+    migrationName     VarChar(255) @map("migration_name")
+    logs              String?
+    rolledBackAt      Timestamptz? @map("rolled_back_at")
+    startedAt         Timestamptz  @default(now()) @map("started_at")
+    appliedStepsCount Int          @default(0) @map("applied_steps_count")
 
-  steps       JobStep[]
-}
+    @@map("_prisma_migrations")
+  }
 
-enum JobStatus {
-  PENDING
-  QUEUED
-  PROCESSING
-  COMPLETED
-  FAILED
-}
+  native_enum JobStatus {
+    PENDING = "PENDING"
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+  }
 
-model JobStep {
-  id          String        @id @default(uuid())
-
-  jobId       String
-  job         Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  name        String
-  order       Int
-  status      JobStepStatus @default(PENDING)
-
-  input       Json?
-  output      Json?
-  error       String?
-
-  startedAt   DateTime?
-  completedAt DateTime?
-  durationMs  Int?
-
-  createdAt   DateTime      @default(now())
-
-  @@index([jobId])
-  @@index([jobId, order])
-}
-
-enum JobStepStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+  native_enum JobStepStatus {
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+  }
 }

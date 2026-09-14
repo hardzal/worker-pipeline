@@ -232,12 +232,32 @@ podman compose up -d
 # or: docker compose up -d
 ```
 
-Apply the Prisma schema:
+Emit the Prisma 8 contract and verify the existing database:
 
 ```bash
-pnpm prisma:generate
-pnpm prisma:migrate
+pnpm prisma:contract:emit
+pnpm prisma:db:verify
 ```
+
+The existing database was adopted with Prisma 8's contract marker. Do not run
+`db sign` on every startup; use it only when intentionally adopting a schema
+that has already been verified outside Prisma 8. For a contract change, plan
+and apply a reviewed migration:
+
+```bash
+pnpm prisma:migration:plan -- --name add_feature
+pnpm prisma:db:migrate
+```
+
+### Git policy untuk artifact Prisma
+
+- `generated/` berisi hasil `prisma contract emit`, sehingga di-ignore dan
+  dibuat ulang otomatis sebelum `test`, `typecheck`, dan `build`.
+- `prisma/migrations/` berisi migration graph Prisma 8 (`baseline`, ref, dan
+  metadata hash), sehingga harus tetap tracked sebagai source-of-truth
+  deployment.
+- `prisma/legacy/migrations/` adalah history migration SQL legacy dan juga
+  harus tetap tracked.
 
 ### Development mode
 
@@ -293,11 +313,11 @@ Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job` dan CLI sub
    docker compose up -d
    ```
 
-2. Generate Prisma Client dan jalankan migration:
+2. Emit contract Prisma 8 dan cek status database:
 
    ```bash
-   pnpm prisma:generate
-   pnpm prisma:migrate
+   pnpm prisma:contract:emit
+   pnpm prisma:db:verify
    ```
 
 3. Jalankan API:
@@ -374,8 +394,15 @@ src/
 └── shared/
 
 prisma/
-├── schema.prisma
-└── migrations/
+├── schema.prisma          # active Prisma 8 contract
+├── migrations/             # active Prisma 8 migration graph
+├── legacy/
+│   ├── schema.prisma      # legacy Prisma 7 source
+│   └── migrations/        # legacy migration history
+
+generated/prisma/
+├── contract.json
+└── contract.d.ts
 ```
 
 ## Roadmap Implementasi
@@ -400,14 +427,14 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Hono bootstrap server | Tersedia |
 | Root endpoint `GET /` | Tersedia |
 | Health endpoint `GET /health` | Tersedia |
-| PostgreSQL / Prisma | Tersedia: schema, migration, client factory |
+| PostgreSQL / Prisma 8 | Tersedia: contract, marker, runtime client factory |
 | Redis / BullMQ | Tersedia: queue configuration and retry defaults |
 | Background worker | Tersedia: infrastructure smoke processor |
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
 | Job API `GET /jobs*` | Belum diimplementasikan |
 | Sequential AI pipeline | Belum diimplementasikan |
-| Job dan step persistence | Tersedia: Prisma schema and migration |
+| Job dan step persistence | Tersedia: Prisma 8 contract and legacy migration history |
 | Automated tests | Tersedia: unit tests; infrastructure smoke-verified locally |
 
 Status ini sengaja membedakan dokumentasi arsitektur target dari fitur yang benar-benar sudah dapat dijalankan.

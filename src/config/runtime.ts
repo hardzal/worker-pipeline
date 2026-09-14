@@ -25,7 +25,7 @@ export function createPipelineRuntime(environment: AppEnv): PipelineRuntime {
   return {
     pipelineAgent: createPipelineAgent({ jobService }),
     async close(): Promise<void> {
-      await Promise.allSettled([queue.close(), prisma.$disconnect()])
+      await Promise.allSettled([queue.close(), prisma.close()])
     },
   }
 }

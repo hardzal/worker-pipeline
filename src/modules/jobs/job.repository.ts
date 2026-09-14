@@ -1,4 +1,9 @@
-import type { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'node:crypto'
+
+import {
+  currentPrismaTimestamp,
+  type PrismaDb,
+} from '../../config/prisma.js'
 
 import type {
   CreateJobInput,
@@ -8,18 +13,19 @@ import type {
 
 const JOB_TYPE = 'study-guide'
 
-export function createJobRepository(prisma: PrismaClient): JobRepository {
+export function createJobRepository(prisma: PrismaDb): JobRepository {
   return {
     async createPending(input: CreateJobInput): Promise<PendingJob> {
-      const job = await prisma.job.create({
-        data: {
-          type: JOB_TYPE,
-          status: 'PENDING',
-          input: {
-            topic: input.topic,
-            content: input.content,
-          },
+      const now = currentPrismaTimestamp()
+      const job = await prisma.orm.public.Job.create({
+        id: randomUUID(),
+        _type: JOB_TYPE,
+        status: 'PENDING',
+        input: {
+          topic: input.topic,
+          content: input.content,
         },
+        updatedAt: now,
       })
 
       return {
@@ -29,23 +35,21 @@ export function createJobRepository(prisma: PrismaClient): JobRepository {
     },
 
     async markQueued(jobId: string, bullJobId: string): Promise<void> {
-      await prisma.job.update({
-        where: { id: jobId },
-        data: {
-          bullJobId,
-          queuedAt: new Date(),
-          status: 'QUEUED',
-        },
+      const now = currentPrismaTimestamp()
+      await prisma.orm.public.Job.where({ id: jobId }).update({
+        bullJobId,
+        queuedAt: now,
+        status: 'QUEUED',
+        updatedAt: now,
       })
     },
 
     async markFailed(jobId: string, error: string): Promise<void> {
-      await prisma.job.update({
-        where: { id: jobId },
-        data: {
-          error,
-          status: 'FAILED',
-        },
+      const now = currentPrismaTimestamp()
+      await prisma.orm.public.Job.where({ id: jobId }).update({
+        error,
+        status: 'FAILED',
+        updatedAt: now,
       })
     },
   }

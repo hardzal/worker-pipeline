@@ -1,0 +1,300 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "createNativeEnumType.JobStatus",
+    "label": "Create enum type \"JobStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "JobStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"JobStatus\"",
+        "sql": "CREATE TYPE \"public\".\"JobStatus\" AS ENUM ('PENDING', 'QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "createNativeEnumType.JobStepStatus",
+    "label": "Create enum type \"JobStepStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "JobStepStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"JobStepStatus\"",
+        "sql": "CREATE TYPE \"public\".\"JobStepStatus\" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.Job",
+    "label": "Create table \"Job\"",
+    "summary": "Creates table \"Job\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Job"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Job\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Job\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Job\"",
+        "sql": "CREATE TABLE \"public\".\"Job\" (\n  \"bullJobId\" text,\n  \"completedAt\" timestamp(3),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"error\" text,\n  \"id\" text NOT NULL,\n  \"input\" jsonb NOT NULL,\n  \"queuedAt\" timestamp(3),\n  \"result\" jsonb,\n  \"startedAt\" timestamp(3),\n  \"status\" \"JobStatus\" DEFAULT 'PENDING'::\"JobStatus\" NOT NULL,\n  \"type\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  CONSTRAINT \"Job_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Job\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Job\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.JobStep",
+    "label": "Create table \"JobStep\"",
+    "summary": "Creates table \"JobStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "JobStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"JobStep\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"JobStep\"",
+        "sql": "CREATE TABLE \"public\".\"JobStep\" (\n  \"completedAt\" timestamp(3),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"durationMs\" int4,\n  \"error\" text,\n  \"id\" text NOT NULL,\n  \"input\" jsonb,\n  \"jobId\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"order\" int4 NOT NULL,\n  \"output\" jsonb,\n  \"startedAt\" timestamp(3),\n  \"status\" \"JobStepStatus\" DEFAULT 'PENDING'::\"JobStepStatus\" NOT NULL,\n  CONSTRAINT \"JobStep_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"JobStep\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Job.Job_bullJobId_key",
+    "label": "Create index \"Job_bullJobId_key\" on \"Job\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Job_bullJobId_key",
+        "table": "Job"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Job_bullJobId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Job_bullJobId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Job_bullJobId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Job_bullJobId_key\" ON \"public\".\"Job\" (\"bullJobId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Job_bullJobId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Job_bullJobId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.JobStep.JobStep_jobId_idx",
+    "label": "Create index \"JobStep_jobId_idx\" on \"JobStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "JobStep_jobId_idx",
+        "table": "JobStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"JobStep_jobId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep_jobId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"JobStep_jobId_idx\"",
+        "sql": "CREATE INDEX \"JobStep_jobId_idx\" ON \"public\".\"JobStep\" (\"jobId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"JobStep_jobId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep_jobId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.JobStep.JobStep_jobId_order_idx",
+    "label": "Create index \"JobStep_jobId_order_idx\" on \"JobStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "JobStep_jobId_order_idx",
+        "table": "JobStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"JobStep_jobId_order_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep_jobId_order_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"JobStep_jobId_order_idx\"",
+        "sql": "CREATE INDEX \"JobStep_jobId_order_idx\" ON \"public\".\"JobStep\" (\"jobId\", \"order\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"JobStep_jobId_order_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"JobStep_jobId_order_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.JobStep.JobStep_jobId_fkey",
+    "label": "Add foreign key \"JobStep_jobId_fkey\" on \"JobStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "JobStep_jobId_fkey",
+        "table": "JobStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"JobStep_jobId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "JobStep_jobId_fkey",
+          "public",
+          "\"public\".\"JobStep\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"JobStep_jobId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"JobStep\"\nADD CONSTRAINT \"JobStep_jobId_fkey\"\nFOREIGN KEY (\"jobId\")\nREFERENCES \"public\".\"Job\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"JobStep_jobId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "JobStep_jobId_fkey",
+          "public",
+          "\"public\".\"JobStep\""
+        ]
+      }
+    ]
+  }
+]
