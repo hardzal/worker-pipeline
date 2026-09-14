@@ -2,7 +2,7 @@
 
 Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **Pipeline Agent with deterministic worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, dan deterministic worker processor tersedia. Job query endpoints dan real AI pipeline masih menjadi fase berikutnya.
+> Status project: **Pipeline Agent with real AI worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, dan three-step study-guide AI pipeline tersedia. Job query endpoints masih menjadi fase berikutnya.
 
 ## Tujuan
 
@@ -366,7 +366,7 @@ curl http://localhost:3000/
 
 ## Cara Menjalankan Target Sistem Lengkap
 
-Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, dan worker persistence sudah tersedia; endpoint query dan real AI pipeline akan ditambahkan pada fase berikutnya.
+Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, worker persistence, dan real AI pipeline sudah tersedia; endpoint query akan ditambahkan pada fase berikutnya.
 
 1. Jalankan PostgreSQL dan Redis:
 
@@ -416,7 +416,7 @@ Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submis
    QUEUED -> PROCESSING -> COMPLETED
    ```
 
-   Result sementara dibuat oleh deterministic processor. Endpoint query belum tersedia sampai Phase 8, jadi keberhasilan worker dapat diverifikasi dari log worker dan row PostgreSQL.
+   Result dibuat oleh tiga real model calls (analyze material, extract concepts, generate study guide). Endpoint query belum tersedia sampai Phase 8, jadi keberhasilan worker dapat diverifikasi dari log worker dan row PostgreSQL.
 
    Setelah endpoint query tersedia, gunakan `id` dari respons untuk memeriksa proses dan hasil:
 
@@ -481,8 +481,8 @@ generated/prisma/
 2. PostgreSQL, Redis, Prisma, dan BullMQ.
 3. Schema `Job` dan `JobStep` beserta migration.
 4. Pipeline Agent HTTP/CLI input dan internal JobService enqueue flow.
-5. Background worker dengan processor deterministik sementara.
-6. Integrasi model AI nyata dan structured output.
+5. Background worker dengan real AI study-guide pipeline.
+6. Structured output schema dan Anvia/OpenAI model adapter.
 7. Persistensi serta sanitasi pipeline step logs.
 8. `GET /jobs` dan `GET /jobs/:id`.
 9. Failure handling, retry, dan idempotency.
@@ -499,7 +499,7 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Health endpoint `GET /health` | Tersedia |
 | PostgreSQL / Prisma 8 | Tersedia: contract, marker, runtime client factory |
 | Redis / BullMQ | Tersedia: queue configuration and retry defaults |
-| Background worker | Tersedia: DB-backed deterministic processor; status PROCESSING/COMPLETED/FAILED dan result/error dipersist |
+| Background worker | Tersedia: DB-backed real AI pipeline; status PROCESSING/COMPLETED/FAILED dan result/error dipersist |
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
 | Job API `GET /jobs*` | Belum diimplementasikan |

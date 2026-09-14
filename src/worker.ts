@@ -1,23 +1,26 @@
 import 'dotenv/config'
 
+import { createAiCompletionModel } from './ai/client.js'
+import { createAnviaStructuredCompletion } from './ai/completion.js'
+import { requireAiEnv, parseAppEnv } from './config/env.js'
 import { createPrismaClient } from './config/prisma.js'
 import { createRedisOptions } from './config/redis.js'
-import { parseAppEnv } from './config/env.js'
 import { createJobRepository } from './modules/jobs/job.repository.js'
-import {
-  createTemporaryJobProcessor,
-  createWorkerProcessor,
-} from './modules/jobs/job.processor.js'
+import { createWorkerProcessor } from './modules/jobs/job.processor.js'
+import { createStudyGuideProcessor } from './pipeline/study-guide.pipeline.js'
 import { JOB_QUEUE_NAME } from './queue/job.queue.js'
 import { createJobWorker } from './queue/job.worker.js'
 
-const environment = parseAppEnv(process.env)
+const environment = requireAiEnv(parseAppEnv(process.env))
 const prisma = createPrismaClient(environment.DATABASE_URL)
 const repository = createJobRepository(prisma)
+const complete = createAnviaStructuredCompletion(
+  createAiCompletionModel(environment),
+)
 const worker = createJobWorker(
   createRedisOptions(environment),
   createWorkerProcessor({
-    process: createTemporaryJobProcessor(),
+    process: createStudyGuideProcessor({ complete }),
     repository,
   }),
   {

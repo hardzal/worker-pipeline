@@ -94,7 +94,7 @@ describe('createJobRepository', () => {
 
     await repository.markProcessing('job-1')
     await repository.markCompleted('job-1', {
-      processor: 'temporary',
+      processor: 'test',
       title: 'Study Guide',
     })
 
@@ -109,7 +109,7 @@ describe('createJobRepository', () => {
     expect(update).toHaveBeenNthCalledWith(2, {
       completedAt: expect.any(Temporal.PlainDateTime),
       result: {
-        processor: 'temporary',
+        processor: 'test',
         title: 'Study Guide',
       },
       status: 'COMPLETED',

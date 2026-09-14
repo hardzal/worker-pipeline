@@ -1414,14 +1414,14 @@ The caller submits through the public `/job` boundary; `JobService` remains inte
 
 ## Phase 5 — Worker
 
-Status: **Implemented with deterministic processor**. Real AI execution remains in Phase 6.
+Status: **Completed**. Phase 6 replaced the temporary processor with the real AI pipeline.
 
 Tasks:
 
 - create worker process
 - load Job using `jobId`
 - update status to PROCESSING
-- implement temporary test processor
+- implement temporary test processor (completed during Phase 5, removed during Phase 6)
 - save result
 - set COMPLETED
 - persist errors
@@ -1442,6 +1442,8 @@ Remove the fake implementation before final submission.
 
 ## Phase 6 — Real AI Integration
 
+Status: **Implemented and smoke-tested with real model calls**.
+
 Tasks:
 
 - configure AI client
@@ -1455,6 +1457,14 @@ Tasks:
 Acceptance criteria:
 
 The final result is generated from the actual input through real model calls.
+
+Implemented as three sequential structured calls:
+
+```text
+analyze material
+  -> extract concepts
+  -> generate study guide
+```
 
 ---
 

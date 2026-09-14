@@ -11,14 +11,6 @@ export type JobProcessFunction<T extends JsonValue> = (
   job: ProcessableJob,
 ) => Promise<T>
 
-export type TemporaryJobResult = {
-  processor: 'temporary'
-  title: string
-  summary: string
-  keyConcepts: string[]
-  questions: string[]
-}
-
 export function createWorkerProcessor<T extends JsonValue>(dependencies: {
   repository: JobWorkerRepository
   process: JobProcessFunction<T>
@@ -50,15 +42,4 @@ export function createWorkerProcessor<T extends JsonValue>(dependencies: {
       throw error
     }
   }
-}
-
-export function createTemporaryJobProcessor(): JobProcessFunction<TemporaryJobResult> {
-  return async ({ input }) => ({
-    processor: 'temporary',
-    title: `${input.topic} Study Guide`,
-    summary:
-      'Temporary processor completed a deterministic study-guide placeholder.',
-    keyConcepts: [input.topic],
-    questions: [],
-  })
 }

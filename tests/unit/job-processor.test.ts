@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  createTemporaryJobProcessor,
-  createWorkerProcessor,
-} from '../../src/modules/jobs/job.processor.js'
+import { createWorkerProcessor } from '../../src/modules/jobs/job.processor.js'
 
 const job = {
   id: 'job-1',
@@ -35,7 +32,7 @@ describe('createWorkerProcessor', () => {
     const process = vi.fn(async (loadedJob: typeof job) => {
       calls.push(`process:${loadedJob.id}`)
       return {
-        processor: 'temporary',
+        processor: 'test',
         title: `${loadedJob.input.topic} Study Guide`,
       }
     })
@@ -47,7 +44,7 @@ describe('createWorkerProcessor', () => {
     const result = await processor({ data: { jobId: job.id } } as never)
 
     expect(result).toEqual({
-      processor: 'temporary',
+      processor: 'test',
       title: 'Model Context Protocol Study Guide',
     })
     expect(calls).toEqual([
@@ -68,7 +65,7 @@ describe('createWorkerProcessor', () => {
       markFailed: vi.fn(async () => undefined),
     }
     const process = vi.fn(async () => {
-      throw new Error('temporary processor failed')
+      throw new Error('AI processor failed')
     })
 
     const processor = createWorkerProcessor({
@@ -78,10 +75,10 @@ describe('createWorkerProcessor', () => {
 
     await expect(
       processor({ data: { jobId: job.id } } as never),
-    ).rejects.toThrow('temporary processor failed')
+    ).rejects.toThrow('AI processor failed')
     expect(repository.markFailed).toHaveBeenCalledWith(
       job.id,
-      'temporary processor failed',
+      'AI processor failed',
     )
     expect(repository.markCompleted).not.toHaveBeenCalled()
   })
@@ -106,20 +103,5 @@ describe('createWorkerProcessor', () => {
       'missing-job',
       'Job missing-job was not found',
     )
-  })
-})
-
-describe('createTemporaryJobProcessor', () => {
-  it('returns a deterministic study-guide placeholder', async () => {
-    const result = await createTemporaryJobProcessor()(job)
-
-    expect(result).toEqual({
-      processor: 'temporary',
-      title: 'Model Context Protocol Study Guide',
-      summary:
-        'Temporary processor completed a deterministic study-guide placeholder.',
-      keyConcepts: ['Model Context Protocol'],
-      questions: [],
-    })
   })
 })
