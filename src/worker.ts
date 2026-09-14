@@ -5,6 +5,7 @@ import { createAnviaStructuredCompletion } from './ai/completion.js'
 import { requireAiEnv, parseAppEnv } from './config/env.js'
 import { createPrismaClient } from './config/prisma.js'
 import { createRedisOptions } from './config/redis.js'
+import { sanitizeErrorMessage } from './shared/sanitize.js'
 import { createJobRepository } from './modules/jobs/job.repository.js'
 import { createWorkerProcessor } from './modules/jobs/job.processor.js'
 import { createStudyGuideProcessor } from './pipeline/study-guide.pipeline.js'
@@ -21,6 +22,7 @@ const worker = createJobWorker(
   createRedisOptions(environment),
   createWorkerProcessor({
     process: createStudyGuideProcessor({ complete, stepLogger: repository }),
+    processTimeoutMs: environment.AI_TIMEOUT_MS,
     repository,
   }),
   {
@@ -44,7 +46,7 @@ worker.on('failed', (job, error) => {
     JSON.stringify({
       event: 'worker.job.failed',
       jobId: job?.data.jobId,
-      message: error.message,
+      message: sanitizeErrorMessage(error),
       timestamp: new Date().toISOString(),
     }),
   )

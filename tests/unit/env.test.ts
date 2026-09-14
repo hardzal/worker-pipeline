@@ -20,6 +20,7 @@ describe('parseAppEnv', () => {
       REDIS_HOST: '127.0.0.1',
       REDIS_PORT: 6380,
       WORKER_CONCURRENCY: 1,
+      AI_TIMEOUT_MS: 120_000,
     })
   })
 

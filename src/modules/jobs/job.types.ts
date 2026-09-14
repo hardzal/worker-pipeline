@@ -19,6 +19,8 @@ export type PendingJob = {
 export type ProcessableJob = {
   id: string
   input: CreateJobInput
+  status?: JobStatus
+  result?: JsonValue | null
 }
 
 export type JobStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'

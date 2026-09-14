@@ -2,7 +2,7 @@
 
 Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **Pipeline Agent with real AI worker and job query endpoints**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, three-step study-guide AI pipeline, per-step `JobStep` logging, `GET /jobs`, dan `GET /jobs/:id` tersedia. Full integration, failure-path, and restart-persistence tests are still pending.
+> Status project: **Pipeline Agent dengan real AI worker, durable failure handling, query endpoints, dan restart persistence**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, configurable AI timeout, retry exhaustion handling, completed-job idempotency, three-step study-guide AI pipeline, per-step `JobStep` logging, `GET /jobs`, dan `GET /jobs/:id` tersedia. Unit suite dan live restart-persistence integration test sudah lulus.
 
 ## Tujuan
 
@@ -220,8 +220,9 @@ Keterangan:
 - `LLM_MODEL`: nama model yang tersedia pada akun/provider.
 - `OPENAI_API_KEY`: credential provider; jangan commit file `.env`.
 - `OPENAI_API_BASE_URL`: base URL endpoint OpenAI-compatible.
+- `AI_TIMEOUT_MS`: batas waktu pemrosesan AI per job dalam milidetik; default `120000`.
 
-`src/server.ts` and `src/worker.ts` read the runtime settings through the validated environment parser. The AI variables remain optional until the AI integration phase.
+`src/server.ts` and `src/worker.ts` read the runtime settings through the validated environment parser. The AI variables are required when starting the worker, while the API can start without an AI provider configured.
 
 ## Menjalankan Project Saat Ini
 
@@ -366,7 +367,7 @@ curl http://localhost:3000/
 
 ## Cara Menjalankan Target Sistem Lengkap
 
-Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, worker persistence, real AI pipeline, dan job query endpoints sudah tersedia; failure-path, integration, dan restart-persistence test masih menjadi pekerjaan berikutnya.
+Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, worker persistence, real AI pipeline, job query endpoints, failure handling, retry/idempotency guard, dan restart-persistence test sudah tersedia.
 
 1. Jalankan PostgreSQL dan Redis:
 
@@ -423,6 +424,22 @@ Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submis
    curl http://localhost:3000/jobs/<job-id>
    ```
 
+## Verifikasi Failure Path dan Restart Persistence
+
+Test unit default tidak membutuhkan service eksternal:
+
+```bash
+pnpm test
+```
+
+Restart-persistence test memakai PostgreSQL yang sedang berjalan dan fixture-nya dibersihkan otomatis:
+
+```bash
+RUN_INTEGRATION_TESTS=1 pnpm exec vitest run tests/integration/restart-persistence.test.ts
+```
+
+Test tersebut membuat job `COMPLETED`, membaca result, menutup runtime database, membuat runtime API/query baru, lalu memastikan `GET /jobs/:id` masih mengembalikan result yang sama.
+
 ## Target Struktur Project
 
 ```text
@@ -464,6 +481,7 @@ src/
 │   ├── prompts.ts
 │   └── schemas.ts
 └── shared/
+    └── sanitize.ts
 
 prisma/
 ├── schema.prisma          # active Prisma 8 contract
@@ -486,9 +504,9 @@ generated/prisma/
 5. Background worker dengan real AI study-guide pipeline.
 6. Structured output schema dan Anvia/OpenAI model adapter.
 7. Persistensi serta sanitasi pipeline step logs. **Selesai.**
-8. `GET /jobs` dan `GET /jobs/:id`. **Selesai diimplementasikan dan unit-tested; live list/404 terverifikasi.**
-9. Failure handling, retry, dan idempotency.
-10. Unit, integration, end-to-end, dan restart-persistence test.
+8. `GET /jobs` dan `GET /jobs/:id`. **Selesai diimplementasikan, unit-tested, dan live-verified.**
+9. Failure handling, retry, dan idempotency. **Selesai diimplementasikan dan unit-tested.**
+10. Unit, integration, end-to-end, dan restart-persistence test. **Restart-persistence live integration test selesai; full end-to-end real-AI flow tetap perlu dijalankan sebagai demo terpisah.**
 
 Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian tersedia pada dokumen project plan di folder `docs` selama pengembangan lokal.
 
@@ -501,12 +519,12 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Health endpoint `GET /health` | Tersedia |
 | PostgreSQL / Prisma 8 | Tersedia: contract, marker, runtime client factory |
 | Redis / BullMQ | Tersedia: queue configuration and retry defaults |
-| Background worker | Tersedia: DB-backed real AI pipeline; status PROCESSING/COMPLETED/FAILED dan result/error dipersist |
+| Background worker | Tersedia: DB-backed real AI pipeline; status PROCESSING/COMPLETED/FAILED, result/error dipersist, timeout AI terkonfigurasi, retry hanya gagal terminal, dan redelivery COMPLETED idempotent |
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
 | Job API `GET /jobs*` | Tersedia: list/detail, saved result, ordered steps, dan `JOB_NOT_FOUND` 404 |
 | Sequential AI pipeline | Tersedia: tiga structured AI calls berurutan |
 | Job dan step persistence | Tersedia: Job lifecycle dan tiga `JobStep` row per job yang selesai |
-| Automated tests | Tersedia: unit tests; API → Redis → worker → PostgreSQL smoke-verified locally |
+| Automated tests | Tersedia: unit suite 40 tests; live restart-persistence integration test; API → Redis → worker → PostgreSQL smoke-verified locally |
 
 Status ini sengaja membedakan dokumentasi arsitektur target dari fitur yang benar-benar sudah dapat dijalankan.

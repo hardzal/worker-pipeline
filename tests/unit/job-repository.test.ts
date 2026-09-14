@@ -166,4 +166,28 @@ describe('createJobRepository', () => {
       status: 'FAILED',
     })
   })
+
+  it('sanitizes sensitive values before persisting a job failure', async () => {
+    const update = vi.fn(async () => undefined)
+    const where = vi.fn(() => ({ update }))
+    const db = {
+      orm: {
+        public: {
+          Job: { where },
+        },
+      },
+    }
+
+    await createJobRepository(db as never).markFailed(
+      'job-1',
+      'provider apiKey=secret-value authorization=Bearer-secret failed',
+    )
+
+    expect(update).toHaveBeenCalledWith({
+      error:
+        'provider apiKey=[REDACTED] authorization=[REDACTED] failed',
+      status: 'FAILED',
+      updatedAt: expect.any(Temporal.PlainDateTime),
+    })
+  })
 })

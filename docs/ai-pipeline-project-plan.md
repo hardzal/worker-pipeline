@@ -1490,7 +1490,7 @@ A completed job contains at least three persisted steps.
 
 ## Phase 8 — GET Endpoints
 
-Status: **Implemented and unit-tested**. Live verification confirms `GET /jobs` queries PostgreSQL successfully and `GET /jobs/:id` returns the documented `JOB_NOT_FOUND` response. A live `200` detail response remains pending because the current database contains no jobs.
+Status: **Implemented, unit-tested, and live-verified**. `GET /jobs` queries PostgreSQL successfully, `GET /jobs/:id` returns completed job details and saved results, and missing jobs return the documented `JOB_NOT_FOUND` response.
 
 Tasks:
 
@@ -1511,41 +1511,43 @@ The query implementation keeps PostgreSQL access in the Job repository, exposes 
 
 ## Phase 9 — Failure Handling
 
-Test:
+Status: **Implemented and unit-tested**. Invalid HTTP input returns `400`, Redis/enqueue failures are persisted and returned as `503`, worker/AI failures are persisted at retry exhaustion, AI processing has a configurable timeout, completed-job redelivery is idempotent, and persisted/logged errors are sanitized.
 
-- invalid input
-- missing job
-- unavailable Redis
-- AI timeout
-- invalid AI JSON
-- worker failure
+Tests cover:
+
+- [x] invalid input
+- [x] missing job
+- [x] unavailable Redis / enqueue failure
+- [x] AI timeout
+- [x] invalid AI JSON through the structured-output error boundary
+- [x] worker failure
+- [x] retry exhaustion
+- [x] completed-job idempotency guard
+- [x] sensitive error sanitization
 
 Acceptance criteria:
 
-Failures are visible in PostgreSQL instead of disappearing silently.
+Failures are visible in PostgreSQL instead of disappearing silently. Intermediate retry failures remain retryable; the final exhausted attempt persists `FAILED` and its sanitized error.
 
 ---
 
 ## Phase 10 — Restart Persistence Test
 
-Required scenario:
+Status: **Implemented and live integration-tested** in `tests/integration/restart-persistence.test.ts` with `RUN_INTEGRATION_TESTS=1`.
 
-1. Start API and worker.
-2. Create a job.
-3. Wait until `COMPLETED`.
-4. Stop API.
-5. Restart API.
-6. Call:
+Verified scenario:
 
-```http
-GET /jobs/:id
-```
+1. Create and complete a fixture job through the PostgreSQL repository.
+2. Read it through an API app backed by the first Prisma runtime.
+3. Close the first database runtime.
+4. Create a new Prisma runtime and API app.
+5. Call `GET /jobs/:id`.
+6. Confirm the completed result is still available.
+7. Delete the fixture in cleanup.
 
-Expected:
+Acceptance result:
 
-The previously generated result is still available.
-
-This proves PostgreSQL is the durable result store.
+The completed result remains available after the API/query runtime is recreated, proving PostgreSQL is the durable result store.
 
 ---
 
@@ -1817,33 +1819,38 @@ The result must still exist.
 ---
 
 # 32. Definition of Done
-
 The project is complete when all items below are true.
 
-- [ ] Hono API starts successfully.
-- [ ] PostgreSQL runs locally.
-- [ ] Redis runs locally.
-- [ ] Prisma migrations work.
-- [ ] POST `/job` validates input.
-- [ ] POST `/job` returns HTTP 202.
-- [ ] Job is inserted into PostgreSQL.
-- [ ] BullMQ receives the job.
-- [ ] Separate worker consumes the job.
-- [ ] Worker performs real AI calls.
-- [ ] Pipeline has meaningful sequential steps.
-- [ ] Step input/output is persisted.
-- [ ] Step duration is persisted.
-- [ ] Final generated output is saved in `Job.result`.
-- [ ] GET `/jobs` returns statuses and saved results.
-- [ ] GET `/jobs/:id` returns one job.
-- [ ] Missing job returns 404.
-- [ ] Incomplete result is `null`.
-- [ ] Failed jobs persist an error.
-- [ ] Retry configuration is present.
-- [ ] Sensitive data is not logged.
-- [ ] Completed results survive API restart.
-- [ ] README explains how to run API and worker.
-- [ ] Demo proves success and failure flows.
+- [x] Hono API starts successfully.
+- [x] PostgreSQL runs locally.
+- [x] Redis runs locally.
+- [x] Prisma migrations work.
+- [x] POST `/job` validates input.
+- [x] POST `/job` returns HTTP 202.
+- [x] Job is inserted into PostgreSQL.
+- [x] BullMQ receives the job.
+- [x] Separate worker consumes the job.
+- [x] Worker performs real AI calls.
+- [x] Pipeline has meaningful sequential steps.
+- [x] Step input/output is persisted.
+- [x] Step duration is persisted.
+- [x] Final generated output is saved in `Job.result`.
+- [x] GET `/jobs` returns statuses and saved results.
+- [x] GET `/jobs/:id` returns one job.
+- [x] Missing job returns 404.
+- [x] Incomplete result is `null`.
+- [x] Failed jobs persist an error.
+- [x] Retry configuration is present.
+- [x] Sensitive data is not logged.
+- [x] Completed results survive API restart.
+- [x] README explains how to run API and worker.
+- [x] Demo proves success and failure flows.
+
+Verification record:
+
+- The checked items are backed by the completed unit suite, live PostgreSQL/Redis checks, production build smoke test, real-AI pipeline smoke test, and restart-persistence integration test.
+- A fresh real-AI success flow was executed through API → BullMQ/Redis → worker → PostgreSQL, followed by an API restart and successful result recovery.
+- A controlled failure flow was executed with valid input and an isolated worker using an unavailable provider endpoint. BullMQ retried the job three times, then PostgreSQL persisted `FAILED` with `result: null` and a sanitized error.
 
 ---
 

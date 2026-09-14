@@ -97,4 +97,26 @@ describe('createStudyGuideProcessor', () => {
     expect(complete).toHaveBeenCalledTimes(1)
     expect(stepLogger.markStepFailed).toHaveBeenCalledTimes(1)
   })
+
+  it('propagates invalid structured AI output and records a failed step', async () => {
+    const complete = vi.fn<StructuredCompletion>(async ({ schema }) => {
+      return schema.parse({
+        summary: '',
+        audience: 'Software engineers',
+        difficulty: 'intermediate',
+      })
+    })
+    const stepLogger = createStepLogger()
+
+    await expect(
+      createStudyGuideProcessor({ complete, stepLogger })(job),
+    ).rejects.toThrow()
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(stepLogger.markStepFailed).toHaveBeenCalledWith(
+      'step-1',
+      expect.any(String),
+      expect.any(Number),
+    )
+    expect(stepLogger.markStepCompleted).not.toHaveBeenCalled()
+  })
 })

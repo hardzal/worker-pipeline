@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 
+import { sanitizeErrorMessage } from './shared/sanitize.js'
 import { registerJobQueryRoutes } from './modules/jobs/job.route.js'
 import type { JobQueryService } from './modules/jobs/job.query.js'
 import { registerPipelineRoutes } from './modules/pipeline/pipeline.route.js'
@@ -46,7 +47,7 @@ export function createApp(dependencies: AppDependencies = {}): Hono {
     console.error(
       JSON.stringify({
         event: 'http.unhandled_error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: sanitizeErrorMessage(error),
         timestamp: new Date().toISOString(),
       }),
     )

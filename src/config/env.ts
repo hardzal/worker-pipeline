@@ -20,6 +20,7 @@ const appEnvSchema = z.object({
   REDIS_HOST: z.string().trim().min(1).default('127.0.0.1'),
   REDIS_PORT: z.coerce.number().int().min(1).max(65_535).default(6380),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(1),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1).max(3_600_000).default(120_000),
   LLM_MODEL: optionalTrimmedString,
   OPENAI_API_KEY: optionalTrimmedString,
   OPENAI_API_BASE_URL: optionalTrimmedString,

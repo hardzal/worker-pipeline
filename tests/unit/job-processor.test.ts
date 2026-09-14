@@ -104,4 +104,102 @@ describe('createWorkerProcessor', () => {
       'Job missing-job was not found',
     )
   })
+
+  it('skips processing when a redelivered job is already completed', async () => {
+    const completedResult = {
+      processor: 'test',
+      title: 'Already completed',
+    }
+    const repository = {
+      loadForProcessing: vi.fn(async () => ({
+        ...job,
+        result: completedResult,
+        status: 'COMPLETED' as const,
+      })),
+      markProcessing: vi.fn(async () => undefined),
+      markCompleted: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    }
+    const process = vi.fn(async () => ({ processor: 'test', title: 'Reprocessed' }))
+
+    const processor = createWorkerProcessor({
+      process,
+      repository,
+    })
+    const result = await processor({ data: { jobId: job.id } } as never)
+
+    expect(result).toEqual(completedResult)
+    expect(process).not.toHaveBeenCalled()
+    expect(repository.markProcessing).not.toHaveBeenCalled()
+    expect(repository.markCompleted).not.toHaveBeenCalled()
+    expect(repository.markFailed).not.toHaveBeenCalled()
+  })
+
+  it('persists failure only after the final retry attempt', async () => {
+    const repository = {
+      loadForProcessing: vi.fn(async () => job),
+      markProcessing: vi.fn(async () => undefined),
+      markCompleted: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    }
+    const process = vi.fn(async () => {
+      throw new Error('temporary AI failure')
+    })
+    const processor = createWorkerProcessor({
+      process,
+      repository,
+    })
+
+    await expect(
+      processor({
+        data: { jobId: job.id },
+        attemptsMade: 0,
+        opts: { attempts: 3 },
+      } as never),
+    ).rejects.toThrow('temporary AI failure')
+    expect(repository.markFailed).not.toHaveBeenCalled()
+
+    await expect(
+      processor({
+        data: { jobId: job.id },
+        attemptsMade: 2,
+        opts: { attempts: 3 },
+      } as never),
+    ).rejects.toThrow('temporary AI failure')
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      job.id,
+      'temporary AI failure',
+    )
+  })
+
+  it('persists an AI timeout and rethrows it for queue retry handling', async () => {
+    const repository = {
+      loadForProcessing: vi.fn(async () => job),
+      markProcessing: vi.fn(async () => undefined),
+      markCompleted: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    }
+    const process = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve({ processor: 'test', title: 'Too late' }),
+            100,
+          )
+        }),
+    )
+    const processor = createWorkerProcessor({
+      process,
+      processTimeoutMs: 25,
+      repository,
+    })
+
+    await expect(processor({ data: { jobId: job.id } } as never)).rejects.toThrow(
+      'AI processing timed out after 25ms',
+    )
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      job.id,
+      'AI processing timed out after 25ms',
+    )
+  })
 })

@@ -5,6 +5,7 @@ import {
   currentPrismaTimestamp,
   type PrismaDb,
 } from '../../config/prisma.js'
+import { sanitizeErrorMessage } from '../../shared/sanitize.js'
 
 import type {
   CreateJobInput,
@@ -60,10 +61,17 @@ export function createJobRepository(
         return null
       }
 
-      return {
+      const processableJob: ProcessableJob = {
         id: job.id,
         input: parseJobInput(job.input),
       }
+
+      if (job.status !== undefined) {
+        processableJob.status = job.status
+        processableJob.result = job.result
+      }
+
+      return processableJob
     },
 
     async markProcessing(jobId: string): Promise<void> {
@@ -89,7 +97,7 @@ export function createJobRepository(
     async markFailed(jobId: string, error: string): Promise<void> {
       const now = currentPrismaTimestamp()
       await prisma.orm.public.Job.where({ id: jobId }).update({
-        error,
+        error: sanitizeErrorMessage(error),
         status: 'FAILED',
         updatedAt: now,
       })
@@ -166,7 +174,7 @@ export function createJobRepository(
       await prisma.orm.public.JobStep.where({ id: stepId }).update({
         completedAt: currentPrismaTimestamp(),
         durationMs,
-        error,
+        error: sanitizeErrorMessage(error),
         status: 'FAILED',
       })
     },
