@@ -1,10 +1,13 @@
 import { Hono } from 'hono'
 
+import { registerJobQueryRoutes } from './modules/jobs/job.route.js'
+import type { JobQueryService } from './modules/jobs/job.query.js'
 import { registerPipelineRoutes } from './modules/pipeline/pipeline.route.js'
 import type { PipelineAgent } from './modules/pipeline/pipeline.agent.js'
 
 export type AppDependencies = {
   pipelineAgent?: PipelineAgent
+  jobQueryService?: JobQueryService
 }
 
 export function createApp(dependencies: AppDependencies = {}): Hono {
@@ -23,6 +26,10 @@ export function createApp(dependencies: AppDependencies = {}): Hono {
 
   if (dependencies.pipelineAgent) {
     registerPipelineRoutes(app, dependencies.pipelineAgent)
+  }
+
+  if (dependencies.jobQueryService) {
+    registerJobQueryRoutes(app, dependencies.jobQueryService)
   }
 
   app.notFound((context) => {

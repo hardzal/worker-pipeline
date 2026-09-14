@@ -1490,18 +1490,22 @@ A completed job contains at least three persisted steps.
 
 ## Phase 8 — GET Endpoints
 
+Status: **Implemented and unit-tested**. Live verification confirms `GET /jobs` queries PostgreSQL successfully and `GET /jobs/:id` returns the documented `JOB_NOT_FOUND` response. A live `200` detail response remains pending because the current database contains no jobs.
+
 Tasks:
 
-- implement `GET /jobs`
-- implement `GET /jobs/:id`
-- include result
-- return null before completion
-- handle 404
-- optionally include steps
+- [x] implement `GET /jobs`
+- [x] implement `GET /jobs/:id`
+- [x] include result
+- [x] return null before completion
+- [x] handle 404
+- [x] optionally include steps
 
 Acceptance criteria:
 
 All assignment endpoints work correctly.
+
+The query implementation keeps PostgreSQL access in the Job repository, exposes a separate query service to the HTTP adapter, orders `JobStep` records by `order`, and returns `result: null` for non-completed jobs.
 
 ---
 

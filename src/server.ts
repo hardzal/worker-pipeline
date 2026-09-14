@@ -8,7 +8,10 @@ import { createPipelineRuntime } from './config/runtime.js'
 
 const environment = parseAppEnv(process.env)
 const runtime = createPipelineRuntime(environment)
-const app = createApp({ pipelineAgent: runtime.pipelineAgent })
+const app = createApp({
+  pipelineAgent: runtime.pipelineAgent,
+  jobQueryService: runtime.jobQueryService,
+})
 
 const server = serve(
   {

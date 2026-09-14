@@ -2,7 +2,7 @@
 
 Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **Pipeline Agent with real AI worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, three-step study-guide AI pipeline, dan per-step `JobStep` logging tersedia. Job query endpoints masih menjadi fase berikutnya.
+> Status project: **Pipeline Agent with real AI worker and job query endpoints**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, three-step study-guide AI pipeline, per-step `JobStep` logging, `GET /jobs`, dan `GET /jobs/:id` tersedia. Full integration, failure-path, and restart-persistence tests are still pending.
 
 ## Tujuan
 
@@ -158,7 +158,7 @@ Contoh respons awal:
 - TypeScript
 - Hono
 - `@hono/node-server`
-- Prisma 7 + PostgreSQL adapter
+- Prisma 8 + PostgreSQL adapter
 - BullMQ + ioredis
 - Zod
 - Vitest
@@ -366,7 +366,7 @@ curl http://localhost:3000/
 
 ## Cara Menjalankan Target Sistem Lengkap
 
-Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, worker persistence, dan real AI pipeline sudah tersedia; endpoint query akan ditambahkan pada fase berikutnya.
+Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, worker persistence, real AI pipeline, dan job query endpoints sudah tersedia; failure-path, integration, dan restart-persistence test masih menjadi pekerjaan berikutnya.
 
 1. Jalankan PostgreSQL dan Redis:
 
@@ -416,11 +416,10 @@ Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submis
    QUEUED -> PROCESSING -> COMPLETED
    ```
 
-   Result dibuat oleh tiga real model calls (analyze material, extract concepts, generate study guide). Endpoint query belum tersedia sampai Phase 8, jadi keberhasilan worker dapat diverifikasi dari log worker dan row PostgreSQL.
-
-   Setelah endpoint query tersedia, gunakan `id` dari respons untuk memeriksa proses dan hasil:
+   Result dibuat oleh tiga real model calls (analyze material, extract concepts, generate study guide). Gunakan endpoint query untuk memeriksa status dan hasil menggunakan `id` dari respons:
 
    ```bash
+   curl http://localhost:3000/jobs
    curl http://localhost:3000/jobs/<job-id>
    ```
 
@@ -441,6 +440,8 @@ src/
 ├── modules/jobs/
 │   ├── job.service.ts
 │   ├── job.repository.ts
+│   ├── job.query.ts
+│   ├── job.route.ts
 │   ├── job.processor.ts
 │   └── job.types.ts
 ├── modules/pipeline/
@@ -485,7 +486,7 @@ generated/prisma/
 5. Background worker dengan real AI study-guide pipeline.
 6. Structured output schema dan Anvia/OpenAI model adapter.
 7. Persistensi serta sanitasi pipeline step logs. **Selesai.**
-8. `GET /jobs` dan `GET /jobs/:id`.
+8. `GET /jobs` dan `GET /jobs/:id`. **Selesai diimplementasikan dan unit-tested; live list/404 terverifikasi.**
 9. Failure handling, retry, dan idempotency.
 10. Unit, integration, end-to-end, dan restart-persistence test.
 
@@ -503,7 +504,7 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Background worker | Tersedia: DB-backed real AI pipeline; status PROCESSING/COMPLETED/FAILED dan result/error dipersist |
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
-| Job API `GET /jobs*` | Belum diimplementasikan |
+| Job API `GET /jobs*` | Tersedia: list/detail, saved result, ordered steps, dan `JOB_NOT_FOUND` 404 |
 | Sequential AI pipeline | Tersedia: tiga structured AI calls berurutan |
 | Job dan step persistence | Tersedia: Job lifecycle dan tiga `JobStep` row per job yang selesai |
 | Automated tests | Tersedia: unit tests; API → Redis → worker → PostgreSQL smoke-verified locally |

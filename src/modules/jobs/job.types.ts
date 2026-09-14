@@ -21,6 +21,43 @@ export type ProcessableJob = {
   input: CreateJobInput
 }
 
+export type JobStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+
+export type JobStepStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+
+export type JobSummary = {
+  id: string
+  type: string
+  status: JobStatus
+  result: JsonValue | null
+  error: string | null
+  createdAt: string
+  completedAt: string | null
+}
+
+export type JobStepDetails = {
+  id: string
+  name: string
+  order: number
+  status: JobStepStatus
+  input: JsonValue | null
+  output: JsonValue | null
+  error: string | null
+  startedAt: string | null
+  completedAt: string | null
+  durationMs: number | null
+}
+
+export type JobDetails = JobSummary & {
+  input: JsonValue
+  steps: JobStepDetails[]
+}
+
+export interface JobQueryRepository {
+  listJobs(): Promise<JobSummary[]>
+  getJob(jobId: string): Promise<JobDetails | null>
+}
+
 export type JobQueuePayload = {
   jobId: string
 }
