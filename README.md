@@ -2,7 +2,7 @@
 
 Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **Pipeline Agent submission foundation**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, dan initial schema tersedia. Job query endpoints, worker persistence, dan real AI pipeline masih menjadi fase berikutnya.
+> Status project: **Pipeline Agent with deterministic worker**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, durable worker status/result persistence, dan deterministic worker processor tersedia. Job query endpoints dan real AI pipeline masih menjadi fase berikutnya.
 
 ## Tujuan
 
@@ -366,7 +366,7 @@ curl http://localhost:3000/
 
 ## Cara Menjalankan Target Sistem Lengkap
 
-Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job` dan CLI submission sudah tersedia; endpoint query dan worker persistence akan ditambahkan pada fase berikutnya.
+Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job`, CLI submission, dan worker persistence sudah tersedia; endpoint query dan real AI pipeline akan ditambahkan pada fase berikutnya.
 
 1. Jalankan PostgreSQL dan Redis:
 
@@ -410,7 +410,15 @@ Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job` dan CLI sub
    pnpm pipeline -- --topic "Model Context Protocol" --content "MCP is an open protocol that standardizes how AI applications connect to external tools and data sources. It defines consistent boundaries between AI applications, tools, and external data."
    ```
 
-7. Gunakan `id` dari respons untuk memeriksa proses dan hasil:
+7. Worker mengambil `id` tersebut dari BullMQ, lalu memperbarui row PostgreSQL secara berurutan:
+
+   ```text
+   QUEUED -> PROCESSING -> COMPLETED
+   ```
+
+   Result sementara dibuat oleh deterministic processor. Endpoint query belum tersedia sampai Phase 8, jadi keberhasilan worker dapat diverifikasi dari log worker dan row PostgreSQL.
+
+   Setelah endpoint query tersedia, gunakan `id` dari respons untuk memeriksa proses dan hasil:
 
    ```bash
    curl http://localhost:3000/jobs/<job-id>
@@ -433,6 +441,7 @@ src/
 ├── modules/jobs/
 │   ├── job.service.ts
 │   ├── job.repository.ts
+│   ├── job.processor.ts
 │   └── job.types.ts
 ├── modules/pipeline/
 │   ├── pipeline.agent.ts
@@ -490,12 +499,12 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | Health endpoint `GET /health` | Tersedia |
 | PostgreSQL / Prisma 8 | Tersedia: contract, marker, runtime client factory |
 | Redis / BullMQ | Tersedia: queue configuration and retry defaults |
-| Background worker | Tersedia: infrastructure smoke processor |
+| Background worker | Tersedia: DB-backed deterministic processor; status PROCESSING/COMPLETED/FAILED dan result/error dipersist |
 | Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
 | Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
 | Job API `GET /jobs*` | Belum diimplementasikan |
 | Sequential AI pipeline | Belum diimplementasikan |
 | Job dan step persistence | Tersedia: Prisma 8 contract and legacy migration history |
-| Automated tests | Tersedia: unit tests; infrastructure smoke-verified locally |
+| Automated tests | Tersedia: unit tests; API → Redis → worker → PostgreSQL smoke-verified locally |
 
 Status ini sengaja membedakan dokumentasi arsitektur target dari fitur yang benar-benar sudah dapat dijalankan.

@@ -60,4 +60,60 @@ describe('createJobRepository', () => {
       updatedAt: expect.any(Temporal.PlainDateTime),
     })
   })
+
+  it('loads a job input for worker processing', async () => {
+    const first = vi.fn(async () => ({
+      id: 'job-1',
+      input,
+    }))
+    const db = {
+      orm: {
+        public: {
+          Job: { first },
+        },
+      },
+    }
+
+    const result = await createJobRepository(db as never).loadForProcessing('job-1')
+
+    expect(first).toHaveBeenCalledWith({ id: 'job-1' })
+    expect(result).toEqual({ id: 'job-1', input })
+  })
+
+  it('marks a job processing and then completed with its result', async () => {
+    const update = vi.fn(async () => undefined)
+    const where = vi.fn(() => ({ update }))
+    const db = {
+      orm: {
+        public: {
+          Job: { where },
+        },
+      },
+    }
+    const repository = createJobRepository(db as never)
+
+    await repository.markProcessing('job-1')
+    await repository.markCompleted('job-1', {
+      processor: 'temporary',
+      title: 'Study Guide',
+    })
+
+    expect(where).toHaveBeenNthCalledWith(1, { id: 'job-1' })
+    expect(where).toHaveBeenNthCalledWith(2, { id: 'job-1' })
+    expect(update).toHaveBeenNthCalledWith(1, {
+      error: null,
+      startedAt: expect.any(Temporal.PlainDateTime),
+      status: 'PROCESSING',
+      updatedAt: expect.any(Temporal.PlainDateTime),
+    })
+    expect(update).toHaveBeenNthCalledWith(2, {
+      completedAt: expect.any(Temporal.PlainDateTime),
+      result: {
+        processor: 'temporary',
+        title: 'Study Guide',
+      },
+      status: 'COMPLETED',
+      updatedAt: expect.any(Temporal.PlainDateTime),
+    })
+  })
 })

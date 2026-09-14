@@ -1,6 +1,5 @@
 // use prisma-next
 // Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
-
 namespace public {
   model Job {
     id          String             @id(map: "Job_pkey")
@@ -17,6 +16,7 @@ namespace public {
     updatedAt   Timestamp(3)
     jobSteps    JobStep[]
 
+    @@map("Job")
     @@index([bullJobId], map: "Job_bullJobId_key", unique: true)
   }
 
@@ -33,23 +33,11 @@ namespace public {
     completedAt Timestamp(3)?
     durationMs  Int?
     createdAt   Timestamp(3)           @default(now())
-    job         Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "JobStep_jobId_fkey")
+    job         Job                    @relation(fields:[jobId], references:[id], onDelete: Cascade, onUpdate: Cascade, map: "JobStep_jobId_fkey")
 
+    @@map("JobStep")
     @@index([jobId], map: "JobStep_jobId_idx")
     @@index([jobId, order], map: "JobStep_jobId_order_idx")
-  }
-
-  model PrismaMigrations {
-    id                VarChar(36)  @id(map: "_prisma_migrations_pkey")
-    checksum          VarChar(64)
-    finishedAt        Timestamptz? @map("finished_at")
-    migrationName     VarChar(255) @map("migration_name")
-    logs              String?
-    rolledBackAt      Timestamptz? @map("rolled_back_at")
-    startedAt         Timestamptz  @default(now()) @map("started_at")
-    appliedStepsCount Int          @default(0) @map("applied_steps_count")
-
-    @@map("_prisma_migrations")
   }
 
   native_enum JobStatus {

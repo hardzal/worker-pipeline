@@ -1,24 +1,25 @@
 import 'dotenv/config'
 
+import { createPrismaClient } from './config/prisma.js'
 import { createRedisOptions } from './config/redis.js'
 import { parseAppEnv } from './config/env.js'
+import { createJobRepository } from './modules/jobs/job.repository.js'
+import {
+  createTemporaryJobProcessor,
+  createWorkerProcessor,
+} from './modules/jobs/job.processor.js'
 import { JOB_QUEUE_NAME } from './queue/job.queue.js'
 import { createJobWorker } from './queue/job.worker.js'
 
 const environment = parseAppEnv(process.env)
+const prisma = createPrismaClient(environment.DATABASE_URL)
+const repository = createJobRepository(prisma)
 const worker = createJobWorker(
   createRedisOptions(environment),
-  async (job) => {
-    console.log(
-      JSON.stringify({
-        event: 'worker.job.received',
-        jobId: job.data.jobId,
-        timestamp: new Date().toISOString(),
-      }),
-    )
-
-    return { jobId: job.data.jobId }
-  },
+  createWorkerProcessor({
+    process: createTemporaryJobProcessor(),
+    repository,
+  }),
   {
     concurrency: environment.WORKER_CONCURRENCY,
   },
@@ -62,7 +63,11 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
     }),
   )
 
-  await worker.close()
+  try {
+    await worker.close()
+  } finally {
+    await prisma.close()
+  }
 }
 
 process.once('SIGINT', () => {

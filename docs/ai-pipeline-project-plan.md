@@ -1414,6 +1414,8 @@ The caller submits through the public `/job` boundary; `JobService` remains inte
 
 ## Phase 5 — Worker
 
+Status: **Implemented with deterministic processor**. Real AI execution remains in Phase 6.
+
 Tasks:
 
 - create worker process
