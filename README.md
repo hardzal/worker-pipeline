@@ -1,8 +1,8 @@
-# AI Pipeline Job Processing API
+# AI Pipeline Agent
 
-API pemrosesan AI asinkron berbasis TypeScript. Client mengirim materi belajar melalui HTTP, API menyimpan job secara persisten, BullMQ menjadwalkan pekerjaan, lalu background worker menjalankan pipeline AI dan menyimpan hasil beserta catatan setiap tahap pemrosesan.
+Pipeline Agent asinkron berbasis TypeScript. Client dapat mengirim input melalui HTTP atau CLI; Pipeline Agent meneruskan command secara internal ke JobService untuk pencatatan durable dan enqueue BullMQ, lalu background worker menjalankan pipeline AI.
 
-> Status project: **infrastructure and persistence foundation**. Hono, PostgreSQL, Redis, BullMQ, Prisma, the initial schema, and an infrastructure smoke worker are available. Job HTTP endpoints and the real AI pipeline remain the next implementation phases from the project plan.
+> Status project: **Pipeline Agent submission foundation**. Hono `POST /job`, CLI submission, PostgreSQL, Redis, BullMQ, Prisma, dan initial schema tersedia. Job query endpoints, worker persistence, dan real AI pipeline masih menjadi fase berikutnya.
 
 ## Tujuan
 
@@ -24,14 +24,17 @@ Redis bukan penyimpanan permanen untuk hasil bisnis.
 ## Gambaran Besar Arsitektur
 
 ```text
-Client
+Client / CLI
   |
-  | POST /jobs
+  | HTTP POST /job atau CLI command
   v
-Hono API
+Pipeline Agent
   |-- validasi input
-  |-- simpan Job (PENDING)
-  |-- enqueue { jobId }
+  |-- panggil internal JobService
+  v
+JobService
+  |-- simpan Job (PENDING) ke PostgreSQL
+  |-- enqueue { jobId } ke BullMQ / Redis
   v
 PostgreSQL <------> BullMQ / Redis
                          |
@@ -56,7 +59,8 @@ PostgreSQL <------> BullMQ / Redis
 
 | Komponen | Tanggung jawab |
 | --- | --- |
-| Hono API | HTTP routing, validasi request, membuat job, dan membaca status/result |
+| Pipeline Agent | HTTP/CLI input, validasi request, dan orchestration submission |
+| JobService | Internal persistence job dan enqueue BullMQ; tidak menjadi public input API |
 | PostgreSQL | Durable state, input asli, hasil akhir, error, dan pipeline step logs |
 | BullMQ | Penjadwalan job, retry, dan backoff |
 | Redis | Backend antrean BullMQ, bukan database hasil akhir |
@@ -119,13 +123,13 @@ PENDING -> QUEUED -> PROCESSING -> COMPLETED
 - `COMPLETED`: hasil akhir sudah tersimpan di PostgreSQL.
 - `FAILED`: enqueue atau eksekusi pipeline gagal dan error telah disimpan.
 
-## Target API
+## Target Pipeline Agent Interfaces
 
-Endpoint berikut adalah kontrak target dan **belum tersedia pada bootstrap saat ini**.
+`POST /job` sudah tersedia sebagai public Pipeline Agent boundary. Endpoint query job masih menjadi fase berikutnya.
 
 | Method | Endpoint | Fungsi | Respons utama |
 | --- | --- | --- | --- |
-| `POST` | `/jobs` | Validasi input, simpan job, lalu enqueue | `202 Accepted` |
+| `POST` | `/job` | Pipeline Agent menerima input lalu mendelegasikan ke internal JobService | `202 Accepted` |
 | `GET` | `/jobs` | Daftar status dan hasil semua job | `200 OK` |
 | `GET` | `/jobs/:id` | Detail satu job beserta hasil dan step | `200 OK` / `404 Not Found` |
 
@@ -255,8 +259,8 @@ curl http://localhost:3000/
 
 Output saat ini:
 
-```text
-Hello Hono!
+```json
+{"name":"AI Pipeline Job Processing API","status":"bootstrap"}
 ```
 
 ### Production-style build
@@ -281,7 +285,7 @@ curl http://localhost:3000/
 
 ## Cara Menjalankan Target Sistem Lengkap
 
-Bagian ini menggambarkan workflow akhir setelah fase infrastructure, API job, worker, database, dan AI integration selesai. Command tersebut belum seluruhnya tersedia di `package.json` saat ini.
+Bagian ini menggambarkan workflow pengembangan saat ini. `POST /job` dan CLI submission sudah tersedia; endpoint query dan worker persistence akan ditambahkan pada fase berikutnya.
 
 1. Jalankan PostgreSQL dan Redis:
 
@@ -308,10 +312,10 @@ Bagian ini menggambarkan workflow akhir setelah fase infrastructure, API job, wo
    pnpm dev:worker
    ```
 
-5. Buat job:
+5. Kirim input ke Pipeline Agent melalui HTTP:
 
    ```bash
-   curl -X POST http://localhost:3000/jobs \
+   curl -X POST http://localhost:3000/job \
      -H 'Content-Type: application/json' \
      -d '{
        "topic": "Model Context Protocol",
@@ -319,7 +323,13 @@ Bagian ini menggambarkan workflow akhir setelah fase infrastructure, API job, wo
      }'
    ```
 
-6. Gunakan `id` dari respons untuk memeriksa proses dan hasil:
+6. Alternatifnya, gunakan CLI dengan use case Pipeline Agent yang sama:
+
+   ```bash
+   pnpm pipeline -- --topic "Model Context Protocol" --content "MCP is an open protocol that standardizes how AI applications connect to external tools and data sources. It defines consistent boundaries between AI applications, tools, and external data."
+   ```
+
+7. Gunakan `id` dari respons untuk memeriksa proses dan hasil:
 
    ```bash
    curl http://localhost:3000/jobs/<job-id>
@@ -332,16 +342,21 @@ src/
 ├── app.ts
 ├── server.ts
 ├── worker.ts
+├── cli/
+│   ├── index.ts
+│   └── args.ts
 ├── config/
 │   ├── env.ts
 │   ├── prisma.ts
 │   └── redis.ts
 ├── modules/jobs/
-│   ├── job.route.ts
-│   ├── job.schema.ts
 │   ├── job.service.ts
 │   ├── job.repository.ts
 │   └── job.types.ts
+├── modules/pipeline/
+│   ├── pipeline.agent.ts
+│   ├── pipeline.route.ts
+│   └── pipeline.schema.ts
 ├── queue/
 │   ├── job.queue.ts
 │   └── job.worker.ts
@@ -368,7 +383,7 @@ prisma/
 1. Bootstrap Hono dan health endpoint.
 2. PostgreSQL, Redis, Prisma, dan BullMQ.
 3. Schema `Job` dan `JobStep` beserta migration.
-4. `POST /jobs` dan enqueue flow.
+4. Pipeline Agent HTTP/CLI input dan internal JobService enqueue flow.
 5. Background worker dengan processor deterministik sementara.
 6. Integrasi model AI nyata dan structured output.
 7. Persistensi serta sanitasi pipeline step logs.
@@ -388,7 +403,9 @@ Rencana detail, acceptance criteria, kontrak data, serta strategi pengujian ters
 | PostgreSQL / Prisma | Tersedia: schema, migration, client factory |
 | Redis / BullMQ | Tersedia: queue configuration and retry defaults |
 | Background worker | Tersedia: infrastructure smoke processor |
-| Job API | Belum diimplementasikan |
+| Pipeline Agent `POST /job` | Tersedia: validation, internal delegation, persistence, enqueue |
+| Pipeline Agent CLI | Tersedia: flags/JSON input, shared use case, JSON output |
+| Job API `GET /jobs*` | Belum diimplementasikan |
 | Sequential AI pipeline | Belum diimplementasikan |
 | Job dan step persistence | Tersedia: Prisma schema and migration |
 | Automated tests | Tersedia: unit tests; infrastructure smoke-verified locally |

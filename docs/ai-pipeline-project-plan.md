@@ -1,8 +1,8 @@
-# AI Pipeline Job Processing API — Detailed Project Plan
+# AI Pipeline Agent — Detailed Project Plan
 
 ## 1. Project Overview
 
-Build a production-style asynchronous AI processing API using:
+Build a production-style asynchronous Pipeline Agent using:
 
 - **Hono** for the HTTP API
 - **BullMQ** for background job processing
@@ -12,7 +12,7 @@ Build a production-style asynchronous AI processing API using:
 - **anvia.dev / real AI model calls** inside the worker
 - **TypeScript** for application code
 
-The API accepts a real input, stores a durable job record, enqueues the work, processes the input through an AI pipeline in a background worker, saves the final generated output, and exposes the job status/result through HTTP endpoints.
+The Pipeline Agent accepts a real input through HTTP or CLI, delegates internally to the JobService for a durable job record and queue submission, processes the input through an AI pipeline in a background worker, saves the final generated output, and exposes status/result endpoints separately.
 
 The project should also record meaningful pipeline steps so the processing flow can be inspected later.
 
@@ -23,20 +23,20 @@ The project should also record meaningful pipeline steps so the processing flow 
 The system must support this flow:
 
 ```text
-Client
+Client / CLI
   |
-  | POST /jobs
+  | HTTP POST /job or CLI command
   v
-Hono API
+Pipeline Agent
   |
   | validate input
-  | create Job
+  | invoke internal JobService
   v
-PostgreSQL
-  |
-  | enqueue job ID
+JobService
+  |-- create Job in PostgreSQL
+  |-- enqueue job ID in BullMQ / Redis
   v
-BullMQ / Redis
+PostgreSQL <------> BullMQ / Redis
   |
   v
 Background Worker
@@ -148,7 +148,7 @@ Job.result
 
 # 5. Functional Requirements
 
-## 5.1 POST `/jobs`
+## 5.1 POST `/job`
 
 Responsibilities:
 
@@ -765,16 +765,22 @@ Recommended folder layout:
 src/
 ├── app.ts
 ├── server.ts
+├── cli/
+│   ├── index.ts
+│   └── args.ts
 │
 ├── config/
 │   ├── env.ts
 │   ├── prisma.ts
-│   └── redis.ts
+│   ├── redis.ts
+│   └── runtime.ts
 │
 ├── modules/
+│   ├── pipeline/
+│   │   ├── pipeline.agent.ts
+│   │   ├── pipeline.route.ts
+│   │   └── pipeline.schema.ts
 │   └── jobs/
-│       ├── job.route.ts
-│       ├── job.schema.ts
 │       ├── job.service.ts
 │       ├── job.repository.ts
 │       ├── job.mapper.ts
@@ -823,16 +829,29 @@ README.md
 
 # 16. Module Responsibilities
 
+## `modules/pipeline`
+
+Owns:
+
+- public Pipeline Agent use case
+- HTTP route adapter for `POST /job`
+- shared input schema for HTTP and CLI
+- orchestration boundary into internal `JobService`
+
+It should not contain queue or database implementation details.
+
+---
+
 ## `modules/jobs`
 
 Owns:
 
-- job HTTP endpoints
-- input validation
-- application-level job orchestration
-- database retrieval
+- internal job application service
+- durable job persistence
+- enqueue command to BullMQ
+- database retrieval and state transitions
 
-It should not contain AI logic.
+It is not a public input API and should not contain AI logic.
 
 ---
 
@@ -883,7 +902,9 @@ Owns:
 
 # 17. API Contract
 
-## POST `/jobs`
+## POST `/job`
+
+This is the public Pipeline Agent boundary. It is not a direct public JobService endpoint.
 
 ### Request
 
@@ -1355,28 +1376,31 @@ Acceptance criteria:
 
 ---
 
-## Phase 4 — POST `/jobs`
+## Phase 4 — Pipeline Agent Input Boundary
 
 Tasks:
 
-- define request schema
-- add route
-- create job service
+- define shared Pipeline Agent input schema
+- add HTTP `POST /job` adapter
+- add CLI input/output adapter
+- invoke internal JobService from the Pipeline Agent
 - insert PENDING record
 - enqueue BullMQ job
 - update status to QUEUED
-- return 202
+- return `202` from HTTP and JSON output from CLI
 
 Acceptance criteria:
 
 ```http
-POST /jobs
+POST /job
 ```
 
-creates both:
+via the Pipeline Agent creates both:
 
 - PostgreSQL job record
 - BullMQ queue job
+
+The caller submits through the public `/job` boundary; `JobService` remains internal and owns persistence/enqueue.
 
 ---
 
@@ -1395,7 +1419,7 @@ Tasks:
 Acceptance criteria:
 
 ```text
-POST /jobs
+POST /job
 -> worker executes
 -> Job becomes COMPLETED
 ```
@@ -1545,7 +1569,7 @@ relations.
 Scenario:
 
 ```text
-POST /jobs
+POST /job
   |
   v
 202 QUEUED
@@ -1679,7 +1703,7 @@ npm run dev:worker
 ## 4. Create Job
 
 ```http
-POST /jobs
+POST /job
 ```
 
 Expected:
@@ -1774,8 +1798,8 @@ The project is complete when all items below are true.
 - [ ] PostgreSQL runs locally.
 - [ ] Redis runs locally.
 - [ ] Prisma migrations work.
-- [ ] POST `/jobs` validates input.
-- [ ] POST `/jobs` returns HTTP 202.
+- [ ] POST `/job` validates input.
+- [ ] POST `/job` returns HTTP 202.
 - [ ] Job is inserted into PostgreSQL.
 - [ ] BullMQ receives the job.
 - [ ] Separate worker consumes the job.
@@ -1905,7 +1929,7 @@ Build in this order:
 2. PostgreSQL + Prisma
 3. Redis + BullMQ
 4. Job database model
-5. POST /jobs
+5. POST /job
 6. Worker
 7. GET endpoints
 8. Real AI client
@@ -2000,7 +2024,7 @@ Evaluate-Improve can be added after the base project works.
                         CLIENT
                            |
                            |
-                     POST /jobs
+                     POST /job
                            |
                            v
                     +--------------+

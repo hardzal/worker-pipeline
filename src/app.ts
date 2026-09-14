@@ -1,11 +1,18 @@
 import { Hono } from 'hono'
 
-export function createApp(): Hono {
+import { registerPipelineRoutes } from './modules/pipeline/pipeline.route.js'
+import type { PipelineAgent } from './modules/pipeline/pipeline.agent.js'
+
+export type AppDependencies = {
+  pipelineAgent?: PipelineAgent
+}
+
+export function createApp(dependencies: AppDependencies = {}): Hono {
   const app = new Hono()
 
   app.get('/', (context) => {
     return context.json({
-      name: 'AI Pipeline Job Processing API',
+      name: 'AI Pipeline Agent',
       status: 'bootstrap',
     })
   })
@@ -13,6 +20,10 @@ export function createApp(): Hono {
   app.get('/health', (context) => {
     return context.json({ status: 'ok' })
   })
+
+  if (dependencies.pipelineAgent) {
+    registerPipelineRoutes(app, dependencies.pipelineAgent)
+  }
 
   app.notFound((context) => {
     return context.json(
