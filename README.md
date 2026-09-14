@@ -249,6 +249,67 @@ pnpm prisma:migration:plan -- --name add_feature
 pnpm prisma:db:migrate
 ```
 
+### Workflow Contract Prisma 8 dan lifecycle hook
+
+Source of truth untuk contract aktif adalah `prisma/schema.prisma`. Artifact
+runtime berikutnya dibuat di `generated/prisma/`, dan folder tersebut di-ignore
+Git karena dapat dibuat ulang:
+
+```text
+prisma/schema.prisma              # source contract yang dikurasi
+generated/prisma/contract.json    # artifact runtime
+generated/prisma/contract.d.ts    # type declaration hasil generate
+```
+
+Gunakan command berikut sesuai arah datanya:
+
+| Command | Alur | Kapan digunakan |
+| --- | --- | --- |
+| `pnpm run prisma:contract:infer` | database existing → `prisma/schema.prisma` | Bootstrap atau reverse-engineering database secara sengaja. Command ini dapat menulis ulang source contract, jadi bukan command rutin build. |
+| `pnpm exec prisma contract format` | merapikan `prisma/schema.prisma` | Setelah mengedit Contract DSL Prisma 8. |
+| `pnpm run prisma:contract:emit` | `prisma/schema.prisma` → `generated/prisma/*` | Menghasilkan artifact yang dipakai runtime, test, typecheck, dan build. |
+
+Contoh bootstrap database existing:
+
+```bash
+pnpm run prisma:contract:infer
+pnpm exec prisma contract format
+pnpm run prisma:contract:emit
+pnpm run prisma:db:verify
+```
+
+Untuk perubahan rutin pada contract:
+
+```bash
+# Edit prisma/schema.prisma terlebih dahulu.
+pnpm exec prisma contract format
+pnpm run prisma:contract:emit
+pnpm run prisma:migration:plan -- --name add_feature
+pnpm run prisma:db:migrate
+```
+
+`prebuild`, `pretypecheck`, dan `pretest` adalah lifecycle hook pnpm. Ketiganya
+memanggil command emit yang sama, tetapi masing-masing hanya berjalan sebelum
+target yang namanya sesuai:
+
+```text
+pnpm run build
+└── prebuild → prisma:contract:emit → tsc
+
+pnpm run typecheck
+└── pretypecheck → prisma:contract:emit → tsc --noEmit
+
+pnpm run test
+└── pretest → prisma:contract:emit → vitest run
+```
+
+Hook tersebut tidak menjalankan `infer` dan tidak berjalan bertiga setiap kali.
+Tujuannya agar `build`, `typecheck`, dan `test` tetap dapat dijalankan secara
+mandiri meskipun folder `generated/` belum tersedia pada checkout atau CI baru.
+Jangan memasukkan `prisma:contract:infer` ke lifecycle hook karena build akan
+menjadi bergantung pada database dan dapat menimpa contract source yang sudah
+dikurasi.
+
 ### Git policy untuk artifact Prisma
 
 - `generated/` berisi hasil `prisma contract emit`, sehingga di-ignore dan
